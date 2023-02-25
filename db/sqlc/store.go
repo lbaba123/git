@@ -4,15 +4,16 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 )
 
-// Store provides all functions to execute db queriesnand transaction
+// Store provides all functions to execute SQL queries and transactions
 type Store struct {
 	*Queries
 	db *sql.DB
 }
 
-// NewStore create a new Store
+// NewStore creates a new store
 func NewStore(db *sql.DB) *Store {
 	return &Store{
 		db:      db,
@@ -20,7 +21,7 @@ func NewStore(db *sql.DB) *Store {
 	}
 }
 
-// execTx executes  function within a database transaction
+// ExecTx executes a function within a database transaction
 func (store *Store) execTx(ctx context.Context, fn func(*Queries) error) error {
 	tx, err := store.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -39,7 +40,7 @@ func (store *Store) execTx(ctx context.Context, fn func(*Queries) error) error {
 	return tx.Commit()
 }
 
-// TransferTxParams contains the input parameters of the transaaction
+// TransferTxParams contains the input parameters of the transfer transaction
 type TransferTxParams struct {
 	FromAccountID int64 `json:"from_account_id"`
 	ToAccountID   int64 `json:"to_account_id"`
@@ -49,27 +50,26 @@ type TransferTxParams struct {
 // TransferTxResult is the result of the transfer transaction
 type TransferTxResult struct {
 	Transfer    Transfer `json:"transfer"`
-	FromAccount Account  `json:"From_Account"`
+	FromAccount Account  `json:"from_account"`
 	ToAccount   Account  `json:"to_account"`
 	FromEntry   Entry    `json:"from_entry"`
 	ToEntry     Entry    `json:"to_entry"`
 }
 
 // TransferTx performs a money transfer from one account to the other.
-// It creates s transfer record, add account entries, and upadte accounts 'balance within a single database transaction
+// It creates the transfer, add account entries, and update accounts' balance within a database transaction
 func (store *Store) TransferTx(ctx context.Context, arg TransferTxParams) (TransferTxResult, error) {
 	var result TransferTxResult
 
 	err := store.execTx(ctx, func(q *Queries) error {
 		var err error
-
 		result.Transfer, err = q.CreateTransfer(ctx, CreateTransferParams{
 			FromAccountID: arg.FromAccountID,
 			ToAccountID:   arg.ToAccountID,
 			Amount:        arg.Amount,
 		})
-
 		if err != nil {
+			log.Println(err)
 			return err
 		}
 
@@ -78,6 +78,7 @@ func (store *Store) TransferTx(ctx context.Context, arg TransferTxParams) (Trans
 			Amount:    -arg.Amount,
 		})
 		if err != nil {
+			log.Println(err)
 			return err
 		}
 
@@ -86,12 +87,12 @@ func (store *Store) TransferTx(ctx context.Context, arg TransferTxParams) (Trans
 			Amount:    arg.Amount,
 		})
 		if err != nil {
+			log.Println(err)
 			return err
 		}
 
-		// TODO: upadte accounts' balance
-
 		return nil
 	})
+
 	return result, err
 }
