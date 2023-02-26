@@ -50,6 +50,7 @@ type TransferTxParams struct {
 
 // TransferTxResult is the result of the transfer transaction
 type TransferTxResult struct {
+	CreateTransferParams
 	Transfer    Transfer `json:"transfer"`
 	FromAccount Account  `json:"From_Account"`
 	ToAccount   Account  `json:"to_account"`
